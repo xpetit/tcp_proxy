@@ -10,18 +10,16 @@ import (
 	"time"
 )
 
-func check(a ...any) {
-	for _, v := range a {
-		if err, ok := v.(error); ok && err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			fmt.Println("Usage:  tp REMOTE_ADDRESS [LOCAL_ADDRESS]")
-			fmt.Println()
-			fmt.Println("Examples:")
-			fmt.Println("tp postgres-host.lan:5432                        listens to 127.0.0.1:5432")
-			fmt.Println("tp postgres-host.lan:5432 :8888                  listens to localhost:8888")
-			fmt.Println("tp postgres-host.lan:5432 [::1]:8888             listens to [::1]:8888")
-			os.Exit(1)
-		}
+func check(err error) {
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		fmt.Println("Usage:  tp REMOTE_ADDRESS [LOCAL_ADDRESS]")
+		fmt.Println()
+		fmt.Println("Examples:")
+		fmt.Println("tp postgres-host.lan:5432                        listens to 127.0.0.1:5432")
+		fmt.Println("tp postgres-host.lan:5432 :8888                  listens to localhost:8888")
+		fmt.Println("tp postgres-host.lan:5432 [::1]:8888             listens to [::1]:8888")
+		os.Exit(1)
 	}
 }
 
