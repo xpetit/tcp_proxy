@@ -1,12 +1,18 @@
 # TCP Proxy
 
-## Usage
+### Installation
+
+```
+go install github.com/xpetit/tcp_proxy@latest
+```
+
+### Usage
 
 ```
 tcp_proxy REMOTE_ADDRESS [LOCAL_ADDRESS]
 ```
 
-## Examples
+### Examples
 
 ```
 tcp_proxy postgres-host.lan:5432                        listens to 127.0.0.1:5432
@@ -14,7 +20,7 @@ tcp_proxy postgres-host.lan:5432 :8888                  listens to localhost:888
 tcp_proxy postgres-host.lan:5432 [::1]:8888             listens to [::1]:8888
 ```
 
-## Performance
+### Performance
 
 ```console
 user@host:~$ socat /dev/null,ignoreeof tcp-listen:1234,fork,reuseaddr &
