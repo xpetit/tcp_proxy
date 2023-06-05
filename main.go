@@ -6,22 +6,10 @@ import (
 	"io"
 	"net"
 	"os"
-	"syscall"
 	"time"
-)
 
-func check(err error) {
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		fmt.Println("Usage:  tp REMOTE_ADDRESS [LOCAL_ADDRESS]")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("tp postgres-host.lan:5432                        listens to 127.0.0.1:5432")
-		fmt.Println("tp postgres-host.lan:5432 :8888                  listens to localhost:8888")
-		fmt.Println("tp postgres-host.lan:5432 [::1]:8888             listens to [::1]:8888")
-		os.Exit(1)
-	}
-}
+	. "github.com/xpetit/x/v2"
+)
 
 func main() {
 	var remote, local string
@@ -31,41 +19,37 @@ func main() {
 		local = os.Args[2]
 	case 2:
 		remote = os.Args[1]
-		_, port, err := net.SplitHostPort(remote)
-		check(err)
+		_, port := C3(net.SplitHostPort(remote))
 		local = "127.0.0.1:" + port
 	default:
-		check(errors.New("invalid number of arguments"))
+		fmt.Fprintln(os.Stderr, "invalid number of arguments")
+		fmt.Println("Usage:  tcp_proxy REMOTE_ADDRESS [LOCAL_ADDRESS]")
+		fmt.Println()
+		fmt.Println("Examples:")
+		fmt.Println("tcp_proxy postgres-host.lan:5432                        listens to 127.0.0.1:5432")
+		fmt.Println("tcp_proxy postgres-host.lan:5432 :8888                  listens to localhost:8888")
+		fmt.Println("tcp_proxy postgres-host.lan:5432 [::1]:8888             listens to [::1]:8888")
+		os.Exit(1)
 	}
 
-	conn, err := net.DialTimeout("tcp", remote, 15*time.Second)
-	check(err)
-	check(conn.Close())
+	// try dialing first to fail early
+	C(C2(net.DialTimeout("tcp", remote, 15*time.Second)).Close())
 
-	l, err := net.Listen("tcp", local)
-	check(err)
-	defer func() { check(l.Close()) }()
+	l := C2(net.Listen("tcp", local))
+	defer Closing(l)
 	fmt.Println("Forwarding from", l.Addr(), "to", remote)
 	for {
-		src, err := l.Accept()
-		check(err)
+		src := C2(l.Accept())
 		go func() {
-			defer func() { check(src.Close()) }()
-			dst, err := net.DialTimeout("tcp", remote, 15*time.Second)
-			check(err)
-			defer func() { check(dst.Close()) }()
-			errC := make(chan error)
-			cp := func(dst, src net.Conn) {
-				_, err := io.Copy(dst, src)
-				if errors.Is(err, syscall.ECONNRESET) {
-					err = nil
-				}
-				errC <- err
-			}
-			go cp(src, dst)
-			go cp(dst, src)
-			check(<-errC)
-			check(<-errC)
+			defer Closing(src)
+
+			dst := C2(net.DialTimeout("tcp", remote, 15*time.Second))
+			go func() {
+				C2(io.Copy(dst, src))
+				C(dst.Close())
+			}()
+			_, err := io.Copy(src, dst)
+			Assert(errors.Is(err, net.ErrClosed), "dst connection is closed")
 		}()
 	}
 }
